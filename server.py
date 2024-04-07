@@ -2,43 +2,120 @@ import socket
 import server_config
 import threading
 import time
+import secrets
+import string
 
-# Dictionary to store connected clients and their last message times
-connected_clients = {}
+chatRooms = {
+    'room1': {
+        'host': None,
+        'members': {}
+    }
+}
 
-def broadcast_message(packet, sender_address):
-    for address in connected_clients.keys():
-        if address != sender_address:
-            sock.sendto(packet, address)
+def generate_token(max_bytes=255):
+    max_chars = max_bytes // 4  # Since each ASCII character is 1 byte, and UTF-8 uses at most 4 bytes per character
+    characters = string.ascii_letters + string.digits
+    length = min(max_chars, 16)  # Minimum length of 16 characters
+    return ''.join(secrets.choice(characters) for _ in range(length))
 
-def handle_client_message(packet, address):
-    usernamelen = int.from_bytes(packet[:1], "big")
-    username = packet[1:usernamelen+1].decode('utf-8')
-    message = packet[usernamelen+1:].decode('utf-8')
-    print('Received message from {}: {}'.format(username, message))
-    broadcast_message(packet, address)
-    connected_clients[address] = time.time()
+def create_response(code, token):
+    return code.to_bytes(1, "big") + token.encode('utf-8')
 
-def cleanup_clients():
+def handle_room():
     while True:
-        current_time = time.time()
-        for address, last_message_time in list(connected_clients.items()):
-            if current_time - last_message_time > server_config.CLIENT_TIMEOUT:
-                print('Client {} timed out and removed'.format(address))
-                del connected_clients[address]
-        time.sleep(server_config.CLEANUP_INTERVAL)
+        print("waiting for connection")
+        connection, client_address = room_sock.accept()
+        if connection:
+            header = connection.recv(32)
+            if not header:
+                print("Client disconnected or empty header received")
+                break
 
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            print('Received header: {}'.format(header))
+            roomName_len = int.from_bytes(header[:1], "big")
+            operation = int.from_bytes(header[1:2], "big")
+            state = int.from_bytes(header[2:3], "big")
+            operationPayload_len = int.from_bytes(header[3:], "big")
+
+            body = connection.recv(roomName_len + operationPayload_len)
+            roomName = body[:roomName_len].decode('utf-8')
+            operationPayload = body[roomName_len:].decode('utf-8')
+            print('Received roomName: {}, operation: {}, state: {}, operationPayload: {}'.format(roomName, operation, state, operationPayload))
+
+            token = generate_token()
+            print('Generated token: {}'.format(token))
+            if operation == 1:
+                print('operation is 1')
+                if roomName in chatRooms:
+                    if chatRooms[roomName]['host'] is None:
+                        chatRooms[roomName]['host'] = {token: client_address}
+                        print('{} became the host in room {}'.format(operationPayload, roomName))
+                        state = 1
+                    else:
+                        state = 0
+                        print('Room {} already exists'.format(roomName))
+                else:
+                    chatRooms[roomName] = {'host': {token: client_address}, 'members': {}}
+                    state = 1
+                    print('Host {} created room {}'.format(operationPayload, roomName))
+            elif operation == 2:
+                print('operation is 2')
+                if roomName in chatRooms:
+                    state = 1
+                    chatRooms[roomName]['members'][token] = client_address
+                    print('{} joined room {}'.format(operationPayload, roomName))
+                else:
+                    state = 0
+                    print('Room {} does not exist'.format(roomName))
+            response = create_response(state, token)
+            connection.send(response)
+            print('chatRooms: {}'.format(chatRooms))
+
+def handle_chat():
+    while True:
+        try:
+            data, address = chat_sock.recvfrom(4096)
+            print('Received data from {}: {}'.format(address, data))
+            roomName_len = int.from_bytes(data[:1], "big")
+            token_len = int.from_bytes(data[1:2], "big")
+            roomName = data[2:2+roomName_len].decode('utf-8')
+            token = data[2+roomName_len:2+roomName_len+token_len].decode('utf-8')
+            message = data[2+roomName_len+token_len:].decode('utf-8')
+            print('Received roomName: {}, token: {}, message: {}'.format(roomName, token, message))
+            if roomName in chatRooms:
+                for memberToken in chatRooms[roomName]['members']:
+                    if memberToken == token:
+                        chatRooms[roomName]['members'][memberToken] = address
+                    chat_sock.sendto(message.encode('utf-8'), chatRooms[roomName]['members'][memberToken])
+                    print('Sent message to member {} address {}'.format(memberToken, address))
+                for hostToken in chatRooms[roomName]['host']:
+                    if hostToken == token:
+                        chatRooms[roomName]['host'][hostToken] = address
+                    chat_sock.sendto(message.encode('utf-8'), chatRooms[roomName]['host'][hostToken])
+                    print('Sent message to host {} address {}'.format(hostToken, address))
+            else:
+                print('Room {} does not exist'.format(roomName))
+        except Exception as e:
+            print('Error(handle-chat): ' + str(e))
+
+#start room server
+room_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_address = server_config.SERVER_ADDRESS
-server_port = server_config.PORT_NUMBER
-sock.bind((server_address, server_port))
-print('Server started on {}:{}'.format(server_address, server_port))
+server_port = server_config.TCP_PORT_NUMBER
+room_sock.bind((server_address, server_port))
+room_sock.listen(5)  # Number of connections to queue up before refusing new connections
+print('Room server started on {}:{}'.format(server_address, server_port))
 
-# Start a thread to clean up inactive clients
-cleanup_thread = threading.Thread(target=cleanup_clients)
-cleanup_thread.daemon = True
-cleanup_thread.start()
+#start chat server
+chat_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+server_address = server_config.SERVER_ADDRESS
+server_port = server_config.UDP_PORT_NUMBER
+chat_sock.bind((server_address, server_port))
+print('Chat server started on {}:{}'.format(server_address, server_port))
+        
 
-while True:
-    packet, address = sock.recvfrom(4096)
-    handle_client_message(packet, address)
+# Create a new thread for each connection
+tcp_thread = threading.Thread(target=handle_room)
+udp_thread = threading.Thread(target=handle_chat)
+tcp_thread.start()
+udp_thread.start()
