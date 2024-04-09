@@ -1,5 +1,5 @@
 const net = require('net');
-const { tcpServerPort, address } = require('./config.js');
+const { tcpServerPort, address } = require('../config.js');
 
 const client = new net.Socket();
 

@@ -1,6 +1,6 @@
-const {tcpClient, enterRoom} = require('./tcpClient');
-const {udpClient, sendMessage} = require('./udpClient');
-const {tcpServerPort, address} = require('./config');
+const {tcpClient, enterRoom} = require('../tcpClient');
+const {udpClient, sendMessage} = require('../udpClient');
+const {tcpServerPort, address} = require('../config');
 
 tcpClient.connect(tcpServerPort, address, () => {
     console.log('Connected to TCP server');

@@ -1,6 +1,6 @@
 const net = require('net');
-const { updateData, readData } = require('./dataUpdater.js');
-const { tcpServerPort } = require('./config.js');
+const { updateData, readData } = require('../dataUpdater.js');
+const { tcpServerPort } = require('../config.js');
 
 const server = net.createServer();
 

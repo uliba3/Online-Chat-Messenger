@@ -3,7 +3,7 @@ const dgram = require('dgram');
 // Create a UDP socket
 const client = dgram.createSocket('udp4');
 
-const { address, udpServerPort } = require('./config.js');
+const { address, udpServerPort } = require('../config.js');
 
 function sendMessage(message) {
     client.send(message, udpServerPort, address, (error) => {

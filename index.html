@@ -1,19 +1,29 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'"
-    />
-    <meta
-      http-equiv="X-Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'"
-    />
+<head>
     <title>Chatroom</title>
-  </head>
-  <body>
+</head>
+<body>
     <div id="app"></div>
-  </body>
-  <script src="./renderer.js"></script>
+    <input id="message" type="text" placeholder="Type a message...">
+    <button id="send">Send</button>
+
+    <script>
+        const app = document.getElementById('app');
+        const messageInput = document.getElementById('message');
+        const sendButton = document.getElementById('send');
+
+        sendButton.addEventListener('click', () => {
+            const message = messageInput.value.trim();
+            if (message) {
+                const messageElement = document.createElement('p');
+                messageElement.textContent = message;
+                app.appendChild(messageElement);
+                messageInput.value = '';
+                // Auto scroll to bottom
+                app.scrollTop = app.scrollHeight;
+            }
+        });
+    </script>
+</body>
 </html>

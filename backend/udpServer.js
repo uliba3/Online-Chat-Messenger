@@ -1,6 +1,6 @@
 const dgram = require('dgram');
-const { updateData, readData } = require('./dataUpdater.js');
-const { udpServerPort, address } = require('./config.js');
+const { updateData, readData } = require('../dataUpdater.js');
+const { udpServerPort, address } = require('../config.js');
 
 // Create a UDP server
 const server = dgram.createSocket('udp4');
