@@ -13,7 +13,7 @@ function createWindow() {
     }
   });
 
-  mainWindow.loadFile('index.html');
+  mainWindow.loadFile('frontend/index.html');
 
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -33,37 +33,3 @@ app.on('activate', () => {
     createWindow();
   }
 });
-
-// TCP Server
-const tcpServer = net.createServer((socket) => {
-  socket.on('data', (data) => {
-    // Handle TCP data
-  });
-
-  socket.on('end', () => {
-    // Handle TCP connection termination
-  });
-});
-
-tcpServer.listen(server_port, server_address, () => {
-  console.log(`TCP server running at ${server_address}:${server_port}`);
-});
-
-// UDP Server
-const udpServer = dgram.createSocket('udp4');
-
-udpServer.on('error', (err) => {
-  console.log(`UDP server error:\n${err.stack}`);
-  udpServer.close();
-});
-
-udpServer.on('message', (msg, rinfo) => {
-  // Handle UDP messages
-});
-
-udpServer.on('listening', () => {
-  const address = udpServer.address();
-  console.log(`UDP server running at ${address.address}:${address.port}`);
-});
-
-udpServer.bind(server_port, server_address);
