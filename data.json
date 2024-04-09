@@ -1,0 +1,1 @@
+{"room":{"members":{"name":{"address":"address","port":"port"}},"messages":[{"name":"name","message":"message"}]},"room1":{"members":{"userName":{"address":"::1","port":62330},"user1":{"address":"127.0.0.1","port":55921}},"messages":[{"name":"user1","message":"EnteredTheroom!"},{"name":"user1","message":"Entered"},{"name":"user1","message":"Entered The room!"}]}}
